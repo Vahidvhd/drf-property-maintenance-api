@@ -1,11 +1,12 @@
 from rest_framework import viewsets, permissions
-# Create your views here.
-from .models import Property, MaintenanceRequest
-from . serializers import (
-    MaintenanceRequestCreateUpdateSerializer,
-    MaintenanceRequestDetailSerializer,
-    MaintenanceRequestListSerializer,
+
+from .models import Property, MaintenanceRequest, RequestComment
+from .serializers import (
     PropertySerializer,
+    MaintenanceRequestListSerializer,
+    MaintenanceRequestDetailSerializer,
+    MaintenanceRequestCreateUpdateSerializer,
+    RequestCommentSerializer,
 )
 
 
@@ -36,3 +37,12 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+
+class RequestCommentViewSet(viewsets.ModelViewSet):
+    queryset = RequestComment.objects.select_related("request", "author").all()
+    serializer_class = RequestCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
