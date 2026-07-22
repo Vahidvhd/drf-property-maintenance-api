@@ -21,11 +21,16 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        if user.is_staff:
-            return MaintenanceRequest.objects.all()
+        queryset = MaintenanceRequest.objects.select_related(
+            "property",
+            "created_by",
+        ).all()
 
-        return MaintenanceRequest.objects.filter(created_by=user)
-    
+        if user.is_staff:
+            return queryset
+
+        return queryset.filter(created_by=user) 
+     
     def get_serializer_class(self):
         if self.action == "list":
             return MaintenanceRequestListSerializer
