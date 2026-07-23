@@ -1,4 +1,6 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 from .models import Property, MaintenanceRequest, RequestComment
 from .serializers import (
@@ -42,6 +44,37 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path="status",
+        permission_classes=[permissions.IsAdminUser],
+    )
+    def update_status(self, request, pk=None):
+        maintenance_request = self.get_object()
+
+        new_status = request.data.get("status")
+
+        valid_statuses = [
+            MaintenanceRequest.Status.OPEN,
+            MaintenanceRequest.Status.IN_PROGRESS,
+            MaintenanceRequest.Status.RESOLVED,
+            MaintenanceRequest.Status.CLOSED,
+        ]
+
+        if new_status not in valid_statuses:
+            return Response(
+                {"detail": "Invalid status."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        maintenance_request.status = new_status
+        maintenance_request.save(update_fields=["status", "updated_at"])
+
+        serializer = self.get_serializer(maintenance_request)
+        return Response(serializer.data)
 
 
 class RequestCommentViewSet(viewsets.ModelViewSet):
