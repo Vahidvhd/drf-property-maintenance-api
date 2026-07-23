@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
 from .models import Property, MaintenanceRequest, RequestComment
 from .serializers import (
@@ -78,9 +79,27 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
 
 class RequestCommentViewSet(viewsets.ModelViewSet):
-    queryset = RequestComment.objects.select_related("request", "author").all()
     serializer_class = RequestCommentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+
+        queryset = RequestComment.objects.select_related(
+            "request",
+            "author",
+            "request__created_by",
+        ).all()
+
+        if user.is_staff:
+            return queryset
+
+        return queryset.filter(request__created_by=user)
+
     def perform_create(self, serializer):
+        maintenance_request = serializer.validated_data["request"]
+
+        if not self.request.user.is_staff and maintenance_request.created_by != self.request.user:
+            raise PermissionDenied("You can only comment on your own requests.")
+
         serializer.save(author=self.request.user)
